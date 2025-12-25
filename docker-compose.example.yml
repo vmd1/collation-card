@@ -1,0 +1,49 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: services/dashboard/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - /srv/coll-card/bob/data:/data
+      - /srv/coll-card/bob/media:/media
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:////data/virtual_card.db
+      - MEDIA_PATH=/media
+    restart: unless-stopped
+
+  submit:
+    build:
+      context: .
+      dockerfile: services/submit/Dockerfile
+    ports:
+      - "8001:8001"
+    volumes:
+      - /srv/coll-card/bob/data:/data
+      - /srv/coll-card/bob/media:/media
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:////data/virtual_card.db
+      - MEDIA_PATH=/media
+      - REDIS_URL=memory://
+    restart: unless-stopped
+
+
+  card:
+    build:
+      context: .
+      dockerfile: services/card/Dockerfile
+    ports:
+      - "8002:8002"
+    volumes:
+      - /srv/coll-card/bob/data:/data
+      - /srv/coll-card/bob/media:/media
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:////data/virtual_card.db
+      - MEDIA_PATH=/media
+    restart: unless-stopped
+
+

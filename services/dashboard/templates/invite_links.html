@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Invite Links</h1>
+    
+    <div class="card p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4">Create New Link</h2>
+        <form method="POST" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                <input type="text" name="note" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Max Uses (optional)</label>
+                    <input type="number" name="max_uses" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Expires In Hours (optional)</label>
+                    <input type="number" name="expires_hours" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                Create Link
+            </button>
+        </form>
+    </div>
+
+    <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4">Existing Links</h2>
+        <div class="space-y-4">
+            {% for link in links %}
+            <div class="border-b pb-4">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ link.token }}</code>
+                        {% if link.note %}
+                        <p class="text-sm text-gray-600 mt-1">{{ link.note }}</p>
+                        {% endif %}
+                        <p class="text-xs text-gray-500 mt-1">
+                            Created: {{ link.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% if link.expires_at %} | Expires: {{ link.expires_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+                            | Uses: {{ link.uses_count }}{% if link.max_uses %}/{{ link.max_uses }}{% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        {% if link.is_active %}
+                        <span class="px-3 py-1 text-xs bg-green-100 text-green-800 rounded-full">Active</span>
+                        <form method="POST" action="/invite-links/{{ link.token }}/deactivate" class="inline ml-2">
+                            <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Deactivate</button>
+                        </form>
+                        {% else %}
+                        <span class="px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Pending Messages</h1>
+    
+    <div class="space-y-4">
+        {% for message in messages %}
+        <div class="card p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-lg font-medium">{{ message.name }} ({{ message.initials }})</h3>
+                    <p class="text-sm text-gray-500">{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                    <p class="text-xs text-gray-400">IP: {{ message.ip_address }}</p>
+                </div>
+                <div class="flex space-x-2">
+                    <a href="/messages/{{ message.id }}/edit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Edit
+                    </a>
+                    <form method="POST" action="/messages/{{ message.id }}/approve" class="inline">
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
+                            Approve
+                        </button>
+                    </form>
+                    <form method="POST" action="/messages/{{ message.id }}/reject" class="inline">
+                        <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                            Reject
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="prose max-w-none">
+                {{ message.content|safe }}
+            </div>
+            
+            {% if message.image_path %}
+            <div class="mt-4">
+                <img src="/media/{{ message.thumb_path }}" alt="Submission image" class="rounded-lg max-w-xs">
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        {% if not messages %}
+        <div class="card p-6 text-center text-gray-500">
+            No pending messages
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

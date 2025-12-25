@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Card</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card-container {
+            perspective: 1000px;
+        }
+        
+        .card {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        
+        .card.flipped {
+            transform: rotateY(180deg);
+        }
+        
+        html, body {
+            height: 100%;
+            margin: 0;
+        }
+
+        .card-front, .card-back {
+            backface-visibility: hidden;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        
+        .card-back {
+            transform: rotateY(180deg);
+        }
+        
+        .message-tile {
+            break-inside: avoid;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.35s, transform 0.35s;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .message-tile.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .avatar {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .avatar:hover {
+            transform: scale(1.2);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .modal {
+            display: none;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+
+        .card-back {
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE and Edge */
+        }
+
+        .card-back::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Opera */
+        }
+
+        #messages {
+            column-gap: 1rem;
+            column-count: 1;
+            width: 100%;
+            transform-origin: top center;
+            transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+    <body class="bg-gray-100">
+    <div id="app" style="height:100vh;">
+        <div class="card-container w-full h-full">
+            <div class="card relative" id="card" style="height:100%;">
+                <!-- Front of card (cover) -->
+                <div class="card-front bg-white rounded-none shadow-none cursor-pointer" onclick="flipCard()">
+                    {% if cover %}
+                    <img src="/media/{{ cover.image_path }}" alt="Card Cover" 
+                         class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-400 to-pink-400">
+                        <h1 class="text-5xl font-bold text-white">Click to Open</h1>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Back of card (messages) -->
+                <div class="card-back bg-white h-full overflow-auto">
+                    <div class="h-full flex flex-col" id="messagesContainer">
+                        <h2 class="text-2xl font-bold text-gray-900 p-4 pb-2 text-center sticky top-0 bg-white z-10">Messages</h2>
+                        <div id="messages" class="w-full px-4 pb-4">
+                        </div>
+                    </div>
+                    <!-- end messagesContainer -->
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50" id="modal">
+        <div class="bg-white rounded-2xl max-w-2xl w-full mx-4 p-8 relative">
+            <button onclick="closeModal()" 
+                    class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+
+    <script>
+        let isFlipped = false;
+        let messages = [];
+
+        function flipCard() {
+            const card = document.getElementById('card');
+            card.classList.toggle('flipped');
+            isFlipped = !isFlipped;
+            
+            if (isFlipped && messages.length === 0) {
+                loadMessages();
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch('/api/messages');
+                messages = await response.json();
+                renderMessages();
+            } catch (error) {
+                console.error('Failed to load messages:', error);
+            }
+        }
+
+        function centerOutOrder(n) {
+            const mid = Math.floor((n - 1) / 2);
+            const order = [];
+            let delta = 0;
+            while (order.length < n) {
+                const right = mid + delta;
+                const left = mid - delta;
+                if (right < n) order.push(right);
+                if (left !== right && left >= 0) order.push(left);
+                delta++;
+            }
+            return order;
+        }
+
+        function pastelFromString(s) {
+            let h = 0;
+            for (let i = 0; i < s.length; i++) {
+                h = (h << 5) - h + s.charCodeAt(i);
+                h |= 0;
+            }
+            const hue = Math.abs(h) % 360;
+            const saturation = 50 + (Math.abs(h) % 40); // 50-90%
+            const lightness = 80 + (Math.abs(h) % 15); // 80-95%
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('messages');
+            container.innerHTML = '';
+            
+            const order = centerOutOrder(messages.length);
+            
+            order.forEach((index, position) => {
+                const msg = messages[index];
+                const tile = createMessageTile(msg);
+                container.appendChild(tile);
+                
+                setTimeout(() => {
+                    tile.classList.add('visible');
+                }, position * 80);
+            });
+            
+            // Add auto-scaling logic after rendering
+            autoScaleGrid();
+        }
+
+        function createMessageTile(msg) {
+            const div = document.createElement('div');
+            div.className = 'message-tile relative bg-white p-4 rounded-xl border-2 cursor-pointer hover:shadow-lg transition-shadow mb-4';
+            div.style.borderColor = msg.color_hint || pastelFromString(msg.name);
+            
+            div.innerHTML = `
+                <div class="flex items-start space-x-4">
+                    <div class="avatar rounded-full flex items-center justify-center text-white font-bold"
+                         style="width: 3em; height: 3em; background: ${msg.color_hint || pastelFromString(msg.name)}">
+                        ${msg.initials}
+                    </div>
+                    <div class="flex-1">
+                        <div class="prose max-w-none" style="overflow:hidden; display:-webkit-box; -webkit-line-clamp:6; -webkit-box-orient:vertical;">
+                            ${msg.content_html}
+                        </div>
+                        ${msg.thumb_url ? `<img src="${msg.thumb_url}" class="mt-4 rounded-lg max-w-xs" alt="Message thumbnail">` : ''}
+                    </div>
+                </div>
+            `;
+            
+            div.addEventListener('click', () => openModal(msg));
+            
+            return div;
+        }
+
+        function openModal(msg) {
+            const modal = document.getElementById('modal');
+            const content = document.getElementById('modalContent');
+            
+            content.innerHTML = `
+                <div class="flex items-center space-x-4 mb-6">
+                    <div class="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl"
+                         style="background: ${msg.color_hint || pastelFromString(msg.name)}">
+                        ${msg.initials}
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold">${msg.name}</h3>
+                        <p class="text-sm text-gray-500">${new Date(msg.created_at).toLocaleDateString()}</p>
+                    </div>
+                </div>
+                <div class="prose max-w-none">
+                    ${msg.content_html}
+                </div>
+                ${(msg.media_type === 'image' && msg.image_url) ? `<img src="${msg.image_url}" class="mt-6 rounded-lg w-full" alt="Message image">` : ''}
+                ${(msg.media_type === 'video' && msg.video_url) ? `<video src="${msg.video_url}" class="mt-6 rounded-lg w-full" controls autoplay loop muted playsinline></video>` : ''}
+            `;
+            
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // Close modal on background click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+
+        function autoScaleGrid() {
+            const container = document.getElementById('messagesContainer');
+            const grid = document.getElementById('messages');
+            if (!grid.children.length) return;
+
+            const availableWidth = container.clientWidth - 32; // 32px for padding
+
+            // Determine optimal column count based on message count and screen width
+            const messageCount = grid.children.length;
+            let columnCount = 1;
+            
+            if (availableWidth >= 1280 && messageCount >= 4) columnCount = 4;
+            else if (availableWidth >= 1024 && messageCount >= 3) columnCount = 3;
+            else if (availableWidth >= 768 && messageCount >= 2) columnCount = 2;
+            
+            // Try increasing columns if we have many messages
+            if (messageCount > columnCount * 4) {
+                columnCount = Math.min(Math.ceil(Math.sqrt(messageCount)), 6);
+            }
+
+            // Set column count
+            grid.style.columnCount = columnCount;
+        }
+
+        window.addEventListener('resize', autoScaleGrid);
+    </script>
+</body>
+</html>
